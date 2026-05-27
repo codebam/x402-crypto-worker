@@ -471,14 +471,18 @@
         );
         log(\`Discovered window properties: \${walletKeys.length > 0 ? walletKeys.join(', ') : 'none'}\`, 'system');
         log(\`window.ethereum type: \${typeof window.ethereum}\`, 'system');
+        log('⚠️ Web3 Troubleshooting Checklist:', 'error');
+        log('1. WALLET IS LOCKED? Locked wallets hide themselves to protect your privacy. Please open your Uniswap Wallet extension and UNLOCK it.', 'error');
+        log('2. USING BRAVE? Brave Shields can block injections. Open brave://settings/web3 and set default provider to "Brave Wallet (Prefer Extension)" or disable Shields.', 'error');
+        log('3. MULTIPLE WALLETS? Disable competing extensions to avoid namespace conflicts.', 'error');
         
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile && currentWeb3Link) {
           log('Redirecting to Web3 wallet deep-link...', 'system');
           window.location.href = currentWeb3Link;
         } else {
-          log('Web3 Wallet not detected! Please install Uniswap Wallet or MetaMask.', 'error');
-          alert('No Web3 wallet extension detected in your browser. Please install a wallet extension like Uniswap Wallet or MetaMask to pay.');
+          log('Web3 Wallet not detected! Please ensure your wallet is unlocked.', 'error');
+          alert('No Web3 wallet extension detected in your browser.\\n\\nCommon fixes:\\n1. Make sure your Uniswap Wallet is UNLOCKED (logged in) and active.\\n2. If using Brave, check brave://settings/web3 settings.\\n3. Disable competing extensions.');
         }
         return;
       }
