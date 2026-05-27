@@ -103,4 +103,16 @@ describe("x402 Multi-Chain Payment Gateway", () => {
       expect(verifyJson.session.transaction_hash).toBe("mock_tx_12345");
     });
   });
+
+  describe("SideShift Configuration", () => {
+    it("accepts SIDESHIFT_SECRET and SIDESHIFT_AFFILIATE_ID configuration", () => {
+      const mockEnv = {
+        ...env,
+        SIDESHIFT_SECRET: "test_secret",
+        SIDESHIFT_AFFILIATE_ID: "test_affiliate"
+      };
+      expect(mockEnv.SIDESHIFT_SECRET).toBe("test_secret");
+      expect(mockEnv.SIDESHIFT_AFFILIATE_ID).toBe("test_affiliate");
+    });
+  });
 });

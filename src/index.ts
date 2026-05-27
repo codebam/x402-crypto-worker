@@ -16,6 +16,8 @@ export interface Env {
   SOLANA_TREASURY_ADDRESS?: string;
   SOLANA_RPC_URL?: string;
   BITCOIN_TREASURY_ADDRESS?: string;
+  SIDESHIFT_SECRET?: string;
+  SIDESHIFT_AFFILIATE_ID?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -86,6 +88,46 @@ function generateBitcoinKeypair() {
   wifPayload[32] = 0x01;
   const privateKeyWIF = base58CheckEncode(0x80, wifPayload);
   return { address, privateKey: privateKeyWIF };
+}
+
+async function createSideShiftVariableOrder(
+  env: Env,
+  depositCoin: string,
+  settleCoin: string,
+  settleAddress: string
+): Promise<string> {
+  const secret = env.SIDESHIFT_SECRET;
+  const affiliateId = env.SIDESHIFT_AFFILIATE_ID;
+  if (!secret || !affiliateId) {
+    throw new Error('SideShift credentials not configured');
+  }
+
+  const response = await fetch('https://sideshift.ai/api/v2/shifts/variable', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-sideshift-secret': secret,
+      'x-user-ip': '127.0.0.1'
+    },
+    body: JSON.stringify({
+      settleAddress,
+      affiliateId,
+      depositCoin,
+      settleCoin
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SideShift Variable Order API returned status ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  if (!data || !data.depositAddress) {
+    throw new Error('SideShift response did not contain a depositAddress');
+  }
+
+  return data.depositAddress;
 }
 
 // Configure x402 Facilitator Client & Resource Server
@@ -607,7 +649,6 @@ async function runScheduledSweeper(env: Env) {
     if (session.status === 'paid') {
       try {
         if (session.network === 'solana') {
-          console.log(`[x402-sweeper] Sweeping Solana address: ${session.payeeAddress} to treasury: ${SOL_treasury}`);
           const connectionUrl = env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
           const connection = new Connection(connectionUrl, 'confirmed');
           
@@ -619,32 +660,67 @@ async function runScheduledSweeper(env: Env) {
 
           const fee = 5000;
           if (balance > fee) {
+            let targetAddress = SOL_treasury;
+            let isSwap = false;
+            
+            // If SideShift is configured and balance > 0.05 SOL (50,000,000 lamports)
+            if (env.SIDESHIFT_SECRET && env.SIDESHIFT_AFFILIATE_ID && balance >= 50000000) {
+              try {
+                console.log(`[x402-sweeper] SideShift config found. Requesting SOL -> ETH swap to EVM treasury: ${EVM_treasury}`);
+                const swapAddress = await createSideShiftVariableOrder(env, 'SOL', 'ETH', EVM_treasury);
+                targetAddress = swapAddress;
+                isSwap = true;
+                console.log(`[x402-sweeper] SideShift SOL -> ETH deposit address generated: ${swapAddress}`);
+              } catch (swapErr) {
+                console.error(`[x402-sweeper] SideShift order creation failed, falling back to native SOL sweep:`, swapErr);
+              }
+            }
+
             const sweepAmount = balance - fee;
             const transaction = new SolanaTransaction().add(
               SystemProgram.transfer({
                 fromPubkey: keypair.publicKey,
-                toPubkey: new SolanaPublicKey(SOL_treasury),
+                toPubkey: new SolanaPublicKey(targetAddress),
                 lamports: BigInt(sweepAmount),
               })
             );
             
             const signature = await connection.sendTransaction(transaction, [keypair]);
-            console.log(`[x402-sweeper] Solana sweep submitted: ${signature}`);
+            console.log(`[x402-sweeper] Solana sweep submitted: ${signature} (isSwap: ${isSwap})`);
             
-            session.status = 'swept';
+            session.status = isSwap ? 'swapped_and_swept' : 'swept';
             session.sweepTxHash = signature;
+            if (isSwap) {
+              session.swapSettleAddress = EVM_treasury;
+              session.swapDepositAddress = targetAddress;
+            }
             await env.X402_KV.put(key.name, JSON.stringify(session));
           }
         } else if (session.network === 'bitcoin') {
+          console.log(`[x402-sweeper] Monitoring/Sweeping Bitcoin address: ${session.payeeAddress}`);
+          
+          // Pre-create swap order for paid BTC session if SideShift keys exist and not yet generated
+          if (env.SIDESHIFT_SECRET && env.SIDESHIFT_AFFILIATE_ID && !session.swapDepositAddress) {
+            try {
+              console.log(`[x402-sweeper] SideShift config found. Pre-creating BTC -> ETH swap to EVM treasury: ${EVM_treasury}`);
+              const swapAddress = await createSideShiftVariableOrder(env, 'BTC', 'ETH', EVM_treasury);
+              session.swapDepositAddress = swapAddress;
+              session.swapSettleAddress = EVM_treasury;
+              console.log(`[x402-sweeper] Pre-created BTC -> ETH swap deposit address: ${swapAddress}`);
+              await env.X402_KV.put(key.name, JSON.stringify(session));
+            } catch (swapErr) {
+              console.error(`[x402-sweeper] SideShift pre-create order failed:`, swapErr);
+            }
+          }
+
           // Verify if UTXO has been swept from legacy address
-          console.log(`[x402-sweeper] Monitoring Bitcoin address: ${session.payeeAddress} for sweeps...`);
           const explorerUrl = `https://mempool.space/api/address/${session.payeeAddress}/utxo`;
           const response = await fetch(explorerUrl);
           if (response.ok) {
             const utxos = await response.json() as any[];
             if (utxos && utxos.length === 0) {
-              console.log(`[x402-sweeper] Bitcoin address ${session.payeeAddress} UTXOs cleared. Marking as swept.`);
-              session.status = 'swept';
+              console.log(`[x402-sweeper] Bitcoin address ${session.payeeAddress} UTXOs cleared.`);
+              session.status = session.swapDepositAddress ? 'swapped_and_swept' : 'swept';
               await env.X402_KV.put(key.name, JSON.stringify(session));
             }
           }
