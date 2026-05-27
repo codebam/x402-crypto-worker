@@ -465,6 +465,13 @@
       }
 
       if (!provider) {
+        log('Starting Web3 environment diagnostics...', 'system');
+        const walletKeys = Object.keys(window).filter(k => 
+          /ethereum|wallet|uniswap|web3|provider|ethers|web3/i.test(k)
+        );
+        log(\`Discovered window properties: \${walletKeys.length > 0 ? walletKeys.join(', ') : 'none'}\`, 'system');
+        log(\`window.ethereum type: \${typeof window.ethereum}\`, 'system');
+        
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile && currentWeb3Link) {
           log('Redirecting to Web3 wallet deep-link...', 'system');
