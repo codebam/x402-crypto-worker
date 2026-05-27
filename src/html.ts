@@ -185,7 +185,7 @@ export const demoHtml = `
               </div>
               <div class="glass-input p-3 rounded-xl border border-slate-800">
                 <span class="block text-slate-500 text-[9px] uppercase font-bold tracking-wider">Token</span>
-                <span class="font-bold text-slate-200 text-sm">USDC (EVM)</span>
+                <span id="invoice-token" class="font-bold text-slate-200 text-sm">USDC (EVM)</span>
               </div>
             </div>
           </div>
@@ -308,6 +308,10 @@ export const demoHtml = `
           // Render Challenge on screen
           qrImage.src = data.qr_code_uri;
           payeeAddr.textContent = currentPayeeAddress;
+          
+          if (data.token_symbol) {
+            document.getElementById('invoice-token').textContent = data.token_symbol + ' (EVM)';
+          }
           
           paywallEmpty.classList.add('hidden');
           paywallSuccess.classList.add('hidden');

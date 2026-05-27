@@ -40,9 +40,6 @@ facilitatorClient.getSupported = async () => {
   };
 };
 
-const resourceServer = new x402ResourceServer(facilitatorClient)
-  .register('eip155:84532', new ExactEvmScheme());
-
 // Helper function to recursively find the Ethereum address in the payment signature payload
 function findEthereumAddress(obj: any): string | null {
   if (typeof obj === 'string') {
@@ -70,6 +67,27 @@ app.all('/api/premium', async (c, next) => {
   if (method !== 'GET' && method !== 'POST') {
     return next();
   }
+
+  // 1. Detect if running in local development mode
+  const url = new URL(c.req.url);
+  const isDev = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+
+  // 2. Dynamically configure ExactEvmScheme and resourceServer
+  const exactScheme = new ExactEvmScheme();
+  if (isDev) {
+    // In local development, override money parser to accept native ETH instead of USDC
+    exactScheme.registerMoneyParser(async (amount, network) => {
+      // Map $0.10 price to 0.0001 ETH (10^14 Wei) to make it super easy/cheap to test
+      return {
+        amount: '100000000000000', // 0.0001 ETH in Wei
+        asset: '0x0000000000000000000000000000000000000000', // Native ETH representation
+        extra: {}
+      };
+    });
+  }
+
+  const resourceServer = new x402ResourceServer(facilitatorClient)
+    .register('eip155:84532', exactScheme);
 
   // Extract PAYMENT-SIGNATURE or fallback x-payment header
   const paymentSignatureHeader = c.req.header('payment-signature') || c.req.header('x-payment');
@@ -225,7 +243,8 @@ app.all('/api/premium', async (c, next) => {
     {
       payee_address: payeeAddress,
       qr_code_uri: qrCodeUri,
-      payment_required_header: paymentRequiredHeader
+      payment_required_header: paymentRequiredHeader,
+      token_symbol: isDev ? 'ETH' : 'USDC'
     },
     402,
     {
