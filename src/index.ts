@@ -96,19 +96,23 @@ async function createSideShiftVariableOrder(
   settleCoin: string,
   settleAddress: string
 ): Promise<string> {
-  const secret = env.SIDESHIFT_SECRET;
   const affiliateId = env.SIDESHIFT_AFFILIATE_ID;
-  if (!secret || !affiliateId) {
-    throw new Error('SideShift credentials not configured');
+  if (!affiliateId) {
+    throw new Error('SideShift Affiliate ID not configured');
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-user-ip': '127.0.0.1'
+  };
+
+  if (env.SIDESHIFT_SECRET) {
+    headers['x-sideshift-secret'] = env.SIDESHIFT_SECRET;
   }
 
   const response = await fetch('https://sideshift.ai/api/v2/shifts/variable', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-sideshift-secret': secret,
-      'x-user-ip': '127.0.0.1'
-    },
+    headers,
     body: JSON.stringify({
       settleAddress,
       affiliateId,
@@ -664,7 +668,7 @@ async function runScheduledSweeper(env: Env) {
             let isSwap = false;
             
             // If SideShift is configured and balance > 0.05 SOL (50,000,000 lamports)
-            if (env.SIDESHIFT_SECRET && env.SIDESHIFT_AFFILIATE_ID && balance >= 50000000) {
+            if (env.SIDESHIFT_AFFILIATE_ID && balance >= 50000000) {
               try {
                 console.log(`[x402-sweeper] SideShift config found. Requesting SOL -> ETH swap to EVM treasury: ${EVM_treasury}`);
                 const swapAddress = await createSideShiftVariableOrder(env, 'SOL', 'ETH', EVM_treasury);
@@ -699,8 +703,8 @@ async function runScheduledSweeper(env: Env) {
         } else if (session.network === 'bitcoin') {
           console.log(`[x402-sweeper] Monitoring/Sweeping Bitcoin address: ${session.payeeAddress}`);
           
-          // Pre-create swap order for paid BTC session if SideShift keys exist and not yet generated
-          if (env.SIDESHIFT_SECRET && env.SIDESHIFT_AFFILIATE_ID && !session.swapDepositAddress) {
+          // Pre-create swap order for paid BTC session if SideShift affiliate ID exists and not yet generated
+          if (env.SIDESHIFT_AFFILIATE_ID && !session.swapDepositAddress) {
             try {
               console.log(`[x402-sweeper] SideShift config found. Pre-creating BTC -> ETH swap to EVM treasury: ${EVM_treasury}`);
               const swapAddress = await createSideShiftVariableOrder(env, 'BTC', 'ETH', EVM_treasury);
