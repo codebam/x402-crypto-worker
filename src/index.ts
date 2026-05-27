@@ -21,12 +21,16 @@ const facilitatorClient = new HTTPFacilitatorClient({
   url: 'https://x402.org/facilitator'
 });
 
-// Mock getSupported locally to bypass remote facilitator connectivity issues and support offline development
 facilitatorClient.getSupported = async () => {
   return {
     kinds: [
       {
         x402Version: 1,
+        scheme: 'exact',
+        network: 'eip155:84532'
+      },
+      {
+        x402Version: 2,
         scheme: 'exact',
         network: 'eip155:84532'
       }
