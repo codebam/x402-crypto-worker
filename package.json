@@ -1,5 +1,5 @@
 {
-  "name": "x402-crypto-worker-tmp",
+  "name": "x402-crypto-worker",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -12,8 +12,17 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
     "@types/node": "^25.9.1",
+    "@types/qrcode": "^1.5.6",
     "typescript": "^5.5.2",
     "vitest": "~3.2.0",
     "wrangler": "^4.95.0"
+  },
+  "dependencies": {
+    "@x402/core": "^2.13.0",
+    "@x402/evm": "^2.13.0",
+    "@x402/hono": "^2.13.0",
+    "ethers": "^6.16.0",
+    "hono": "^4.12.23",
+    "qrcode": "^1.5.4"
   }
 }
