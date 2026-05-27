@@ -130,8 +130,9 @@ app.all('/api/premium', async (c, next) => {
     console.log(`[x402] Private key for sweeping: ${privateKey}`);
   }
 
-  // Generate QR code SVG/URI representation for the wallet address
-  const qrCodeUri = await QRCode.toDataURL(`ethereum:${payeeAddress}`);
+  // Generate QR code SVG representation for the wallet address
+  const qrCodeSvg = await QRCode.toString(`ethereum:${payeeAddress}`, { type: 'svg' });
+  const qrCodeUri = `data:image/svg+xml;base64,${btoa(qrCodeSvg)}`;
 
   // 4. Construct RoutesConfig dynamically with the designated payeeAddress
   const path = c.req.path;
