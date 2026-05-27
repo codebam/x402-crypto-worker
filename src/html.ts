@@ -280,22 +280,33 @@ export const demoHtml = `
     window.addEventListener("eip6963:announceProvider", (event) => {
       if (!announcedProviders.some(p => p.info.uuid === event.detail.info.uuid)) {
         announcedProviders.push(event.detail);
+        log(\`Discovered Web3 Wallet: \${event.detail.info.name}\`, 'system');
       }
     });
-    window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+    function requestProviders() {
+      window.dispatchEvent(new Event("eip6963:requestProvider"));
+    }
+
+    requestProviders();
+    window.addEventListener('load', requestProviders);
+    document.addEventListener('DOMContentLoaded', requestProviders);
+    for (let delay of [100, 250, 500, 1000, 2000]) {
+      setTimeout(requestProviders, delay);
+    }
 
     function getWeb3Provider() {
       if (announcedProviders.length > 0) {
         const uniswap = announcedProviders.find(p => p.info.name.toLowerCase().includes('uniswap'));
         if (uniswap) {
-          log(\`Using EIP-6963 provider: \${uniswap.info.name}\`, 'system');
+          log(\`Resolved EIP-6963 provider: \${uniswap.info.name}\`, 'system');
           return uniswap.provider;
         }
-        log(\`Using EIP-6963 provider: \${announcedProviders[0].info.name}\`, 'system');
+        log(\`Resolved EIP-6963 provider: \${announcedProviders[0].info.name}\`, 'system');
         return announcedProviders[0].provider;
       }
       if (window.ethereum) {
-        log('Using window.ethereum standard provider', 'system');
+        log('Resolved standard window.ethereum provider', 'system');
         return window.ethereum;
       }
       return null;
@@ -445,7 +456,14 @@ export const demoHtml = `
     btnWeb3Pay.addEventListener('click', async (e) => {
       e.preventDefault();
       
-      const provider = getWeb3Provider();
+      let provider = getWeb3Provider();
+      if (!provider) {
+        log('No provider detected, requesting wallet announcement and retrying...', 'system');
+        requestProviders();
+        await new Promise(resolve => setTimeout(resolve, 200));
+        provider = getWeb3Provider();
+      }
+
       if (!provider) {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile && currentWeb3Link) {
