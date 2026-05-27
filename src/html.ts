@@ -4,9 +4,11 @@ export const demoHtml = `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>x402 Agentic Payment Protocol Demo</title>
+  <title>x402 Agentic Multi-Chain Payment Gateway</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Solana Web3.js Browser Library CDN -->
+  <script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
   <!-- Inter & Outfit Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -64,20 +66,20 @@ export const demoHtml = `
     <header class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-6">
       <div class="space-y-1">
         <h1 class="text-4xl font-extrabold font-display tracking-tight bg-gradient-to-r from-cyan-400 via-sky-400 to-purple-400 bg-clip-text text-transparent">
-          x402 Protocol Terminal
+          x402 Multi-Chain Gateway
         </h1>
         <p class="text-slate-400 text-sm">
-          Dynamic Agentic Cryptocurrency Payments via HTTP 402
+          Dynamic Production Cryptocurrency Payments (EVM, Solana, & Bitcoin)
         </p>
       </div>
       <div class="mt-4 md:mt-0 flex items-center gap-3">
         <span class="px-3 py-1 text-xs rounded-full font-medium bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-          Facilitator: x402.org
+          Gateway: Active
         </span>
         <span id="active-network-pill" class="px-3 py-1 text-xs rounded-full font-medium bg-cyan-950/40 text-cyan-400 border border-cyan-800/60 flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-          Sepolia
+          Sepolia (EVM)
         </span>
       </div>
     </header>
@@ -92,23 +94,30 @@ export const demoHtml = `
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
             </svg>
-            API Protection Dashboard
+            Gateway Dashboard
           </h2>
 
           <div class="space-y-4 text-sm text-slate-300 leading-relaxed">
             <p>
-              The protected API endpoint <code class="text-indigo-400 bg-slate-950/80 px-1.5 py-0.5 rounded font-mono">/api/premium</code> requires a micro-payment of <strong class="text-white">$0.10 USD</strong>.
+              Configure and test your payment parameters. Pick your desired network below to dynamically create an ephemeral payee address and WIF/secret key.
             </p>
-            <p>
-              Upon request, the middleware intercepts the call, dynamically creates an ephemeral Ethereum wallet, maps the private key, and returns an <span class="text-rose-400 font-bold">HTTP 402 Payment Required</span> response with a custom payload.
-            </p>
+          </div>
+
+          <!-- Network Selection Dropdown -->
+          <div class="space-y-2">
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Select Blockchain Network</label>
+            <select id="select-network" class="w-full font-sans text-xs text-slate-300 glass-input px-3 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500/50 transition">
+              <option value="evm">EVM (Ethereum / Sepolia)</option>
+              <option value="solana">Solana (SOL Devnet / Mainnet)</option>
+              <option value="bitcoin">Bitcoin (BTC Testnet / Mainnet)</option>
+            </select>
           </div>
 
           <!-- Callback URL configuration -->
           <div class="space-y-2">
-            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Callback Webhook URL (Production API Demo)</label>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Callback Webhook URL (Production webhook)</label>
             <input id="input-callback-url" type="text" placeholder="https://example.com/webhook" class="w-full font-mono text-xs text-slate-300 glass-input px-3 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500/50 transition">
-            <p class="text-[9px] text-slate-500 italic">Optional. Enter your application's endpoint to test post-payment secure webhook callbacks.</p>
+            <p class="text-[9px] text-slate-500 italic">Optional. Enter your webhook endpoint to receive transaction verification events.</p>
           </div>
 
           <div class="pt-4 flex flex-wrap gap-4">
@@ -116,14 +125,14 @@ export const demoHtml = `
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
               </svg>
-              Request Protected API
+              Request Invoice
             </button>
             
             <button id="btn-simulate" disabled class="flex-1 min-w-[200px] px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed active:scale-[0.98] transition text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
               </svg>
-              Simulate & Retry Payment
+              Simulate & Verify Webhook
             </button>
           </div>
         </div>
@@ -133,13 +142,13 @@ export const demoHtml = `
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 class="font-display font-semibold text-slate-300 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping"></span>
-              Real-time HTTP Console
+              Real-time Gateway Console
             </h3>
             <button id="btn-clear" class="text-xs text-slate-500 hover:text-slate-300 transition">Clear Console</button>
           </div>
           
           <div id="console-output" class="h-64 overflow-y-auto glass-input p-4 rounded-xl font-mono text-xs space-y-3 leading-relaxed border border-slate-800">
-            <div class="text-slate-500">// System ready. Click "Request Protected API" to launch protocol.</div>
+            <div class="text-slate-500">// Gateway ready. Select your network and click "Request Invoice" to begin.</div>
           </div>
         </div>
       </div>
@@ -157,7 +166,7 @@ export const demoHtml = `
             <div class="space-y-1">
               <h3 class="text-lg font-semibold font-display text-slate-200">Terminal Idle</h3>
               <p class="text-xs text-slate-500 max-w-[250px] mx-auto">
-                Protected resource lock is active. Fire an API request to generate payment details.
+                Invoice generation is locked. Request an invoice to populate Web3 signing fields.
               </p>
             </div>
           </div>
@@ -165,9 +174,9 @@ export const demoHtml = `
           <div id="paywall-challenge" class="hidden w-full space-y-6">
             <div class="space-y-1">
               <span class="px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-widest rounded bg-rose-950/50 text-rose-400 border border-rose-800/40">
-                402 Payment Required
+                Invoice Unpaid
               </span>
-              <h3 class="text-xl font-bold font-display text-white mt-2">Ephemeral Invoice</h3>
+              <h3 class="text-xl font-bold font-display text-white mt-2">Dynamic Multi-Chain Invoice</h3>
             </div>
 
             <!-- QR Code Container -->
@@ -181,12 +190,12 @@ export const demoHtml = `
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" />
               </svg>
-              Pay with Web3 Wallet
+              <span id="btn-web3-text">Pay with Web3 Wallet</span>
             </a>
 
             <!-- Payee Address Detail -->
             <div class="space-y-1.5 text-left w-full">
-              <label class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Dynamic Payee Address</label>
+              <label class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Temporary Payee Address</label>
               <div class="flex items-center gap-2 glass-input px-3 py-2.5 rounded-xl border border-slate-800">
                 <span id="payee-addr" class="font-mono text-xs text-slate-300 truncate flex-1">0x0000000000000000000000000000000000000000</span>
                 <button id="btn-copy" class="text-cyan-400 hover:text-cyan-300 text-xs shrink-0 active:scale-95 transition">Copy</button>
@@ -216,20 +225,20 @@ export const demoHtml = `
               <span class="px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-widest rounded bg-emerald-950/50 text-emerald-400 border border-emerald-800/40">
                 200 OK Succeeded
               </span>
-              <h3 class="text-2xl font-bold font-display text-white mt-2">Resource Unlocked!</h3>
+              <h3 class="text-2xl font-bold font-display text-white mt-2">Invoice Cleared!</h3>
             </div>
 
             <div class="glass-input p-4 rounded-2xl border border-slate-800 space-y-3 text-left">
               <div class="text-xs">
-                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Receipt Hash</span>
+                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">On-Chain Tx Receipt Hash</span>
                 <span id="success-tx-hash" class="font-mono text-emerald-400 break-all select-all">0x000000...</span>
               </div>
               <div class="text-xs">
-                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Webhook Callback Status</span>
+                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Asynchronous Webhook Callback Status</span>
                 <span id="success-callback" class="text-purple-400 font-mono break-all font-semibold">none</span>
               </div>
               <div class="text-xs">
-                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Server Response</span>
+                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Server Gateway Message</span>
                 <span id="success-msg" class="text-slate-300">Premium payload unlocked successfully.</span>
               </div>
             </div>
@@ -242,7 +251,7 @@ export const demoHtml = `
   </div>
 
   <footer class="mt-16 text-slate-600 text-xs text-center border-t border-slate-900 pt-6 w-full max-w-5xl">
-    x402 Agentic Payment Protocol Standard &bull; Powered by Cloudflare Workers & Hono
+    x402 Agentic Multi-Chain Gateway &bull; Reusable Production REST Webhooks
   </footer>
 
   <script>
@@ -252,7 +261,9 @@ export const demoHtml = `
     const btnClear = document.getElementById('btn-clear');
     const btnCopy = document.getElementById('btn-copy');
     const btnWeb3Pay = document.getElementById('btn-web3-pay');
+    const btnWeb3Text = document.getElementById('btn-web3-text');
     const consoleOutput = document.getElementById('console-output');
+    const selectNetwork = document.getElementById('select-network');
     
     const paywallEmpty = document.getElementById('paywall-empty');
     const paywallChallenge = document.getElementById('paywall-challenge');
@@ -267,6 +278,7 @@ export const demoHtml = `
     let currentRequiredHeader = '';
     let currentNetworkId = 'eip155:11155111';
     let currentWeb3Link = '';
+    let chosenNetwork = 'evm'; // 'evm', 'solana', 'bitcoin'
 
     // Console Logging
     function log(message, type = 'info') {
@@ -291,7 +303,7 @@ export const demoHtml = `
     window.addEventListener("eip6963:announceProvider", (event) => {
       if (!announcedProviders.some(p => p.info.uuid === event.detail.info.uuid)) {
         announcedProviders.push(event.detail);
-        log(\`Discovered Web3 Wallet: \${event.detail.info.name}\`, 'system');
+        log(\`Discovered EVM Web3 Wallet: \${event.detail.info.name}\`, 'system');
       }
     });
 
@@ -338,8 +350,9 @@ export const demoHtml = `
     // API Interactions
     btnFetch.addEventListener('click', async () => {
       btnFetch.disabled = true;
+      chosenNetwork = selectNetwork.value;
       const callbackUrl = document.getElementById('input-callback-url').value;
-      log('POST /api/payment/create - Requesting Web3 Invoice', 'request');
+      log(\`POST /api/payment/create - Requesting invoice on \${chosenNetwork.toUpperCase()}...\`, 'request');
       
       try {
         const response = await fetch('/api/payment/create', {
@@ -349,18 +362,19 @@ export const demoHtml = `
           },
           body: JSON.stringify({
             amount_usd: 0.10,
-            callback_url: callbackUrl
+            callback_url: callbackUrl,
+            network: chosenNetwork
           })
         });
 
-        log(\`HTTP Status: \${response.status} \dots\`, 'system');
+        log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
 
         if (response.status === 200) {
           const data = await response.json();
           currentPayeeAddress = data.payee_address;
           currentRequiredHeader = 'created';
           
-          log(\`Web3 Invoice Created! payee_address: \${currentPayeeAddress}\`, 'response-202');
+          log(\`Web3 Invoice Created! payee_address: \${currentPayeeAddress}\`, 'response-402');
           
           // Render Challenge on screen
           qrImage.src = data.qr_code_uri;
@@ -371,13 +385,25 @@ export const demoHtml = `
           }
           
           if (data.token_symbol) {
-            document.getElementById('invoice-token').textContent = data.token_symbol + ' (EVM)';
+            document.getElementById('invoice-token').textContent = data.token_symbol + ' (' + chosenNetwork.toUpperCase() + ')';
           }
           if (data.network_name) {
             document.getElementById('active-network-pill').innerHTML = '<span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> ' + data.network_name;
           }
           if (data.network_id) {
             currentNetworkId = data.network_id;
+          }
+
+          // Dynamically adjust button appearance
+          if (chosenNetwork === 'solana') {
+            btnWeb3Text.textContent = 'Pay with Phantom (Solana)';
+            btnWeb3Pay.style.display = 'flex';
+          } else if (chosenNetwork === 'bitcoin') {
+            btnWeb3Text.textContent = 'Self-Pay Legacy Address';
+            btnWeb3Pay.style.display = 'none'; // Bitcoin relies on standard QR scanning
+          } else {
+            btnWeb3Text.textContent = 'Pay with Web3 Wallet';
+            btnWeb3Pay.style.display = 'flex';
           }
           
           paywallEmpty.classList.add('hidden');
@@ -407,8 +433,8 @@ export const demoHtml = `
       log('Simulating on-chain payment settlement...', 'system');
 
       // Create a mock transaction hash
-      const mockTxHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
-      log(\`Generated Mock Transaction: \${mockTxHash}\`, 'system');
+      const mockTxHash = 'mock_' + Array.from({length: 60}, () => Math.floor(Math.random()*16).toString(16)).join('');
+      log(\`Generated Mock Transaction Hash: \${mockTxHash}\`, 'system');
       
       log('POST /api/payment/verify - Verifying transaction hash...', 'request');
 
@@ -424,7 +450,7 @@ export const demoHtml = `
           })
         });
 
-        log(\`HTTP Status: \${response.status} \dots\`, 'system');
+        log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
 
         if (response.status === 200) {
           const data = await response.json();
@@ -444,14 +470,81 @@ export const demoHtml = `
     btnWeb3Pay.addEventListener('click', async (e) => {
       e.preventDefault();
       
-      let provider = getWeb3Provider();
-      if (!provider) {
-        log('No provider detected, requesting wallet announcement and retrying...', 'system');
-        requestProviders();
-        await new Promise(resolve => setTimeout(resolve, 200));
-        provider = getWeb3Provider();
+      if (chosenNetwork === 'solana') {
+        // Phantom / Solana Wallet Integration
+        if (!window.solana || !window.solana.isPhantom) {
+          log('Solana Wallet extension not detected! Please install Phantom.', 'error');
+          alert('Phantom wallet extension not detected. Please install Phantom Wallet to sign Solana payments.');
+          return;
+        }
+
+        btnWeb3Pay.classList.add('animate-pulse', 'pointer-events-none');
+        btnWeb3Pay.textContent = 'Connecting Phantom...';
+
+        try {
+          log('Connecting Phantom Solana wallet...', 'system');
+          const resp = await window.solana.connect();
+          const userAddress = resp.publicKey.toString();
+          log(\`Solana connected: \${userAddress}\`, 'system');
+
+          btnWeb3Pay.textContent = 'Signing SOL Transaction...';
+          log('Preparing Solana transfer transaction...', 'system');
+
+          // Establish devnet connection
+          const connection = new solanaWeb3.Connection("https://api.devnet.solana.com", "confirmed");
+          
+          // Transfer 1,000,000 lamports = 0.001 Devnet SOL
+          const transaction = new solanaWeb3.Transaction().add(
+            solanaWeb3.SystemProgram.transfer({
+              fromPubkey: new solanaWeb3.PublicKey(userAddress),
+              toPubkey: new solanaWeb3.PublicKey(currentPayeeAddress),
+              lamports: 1000000,
+            })
+          );
+
+          transaction.feePayer = new solanaWeb3.PublicKey(userAddress);
+          const { blockhash } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = blockhash;
+
+          log('Prompting Phantom transaction signature approval...', 'system');
+          const { signature } = await window.solana.signAndSendTransaction(transaction);
+          log(\`SOL transaction submitted! Signature: \${signature}\`, 'system');
+
+          btnWeb3Pay.textContent = 'Verifying SOL Payment...';
+          log('POST /api/payment/verify - Verifying Solana signature...', 'request');
+
+          const response = await fetch('/api/payment/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              payee_address: currentPayeeAddress,
+              transaction_hash: signature
+            })
+          });
+
+          log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
+
+          if (response.status === 200) {
+            const data = await response.json();
+            log('HTTP 200 OK: Solana Payment Verified!', 'response-200');
+            renderSuccess(data);
+          } else {
+            const data = await response.json();
+            log(\`Payment verification failed: \${data.error || JSON.stringify(data)}\`, 'error');
+          }
+        } catch (err) {
+          log(\`Solana payment signing failed: \${err.message || err}\`, 'error');
+        } finally {
+          btnWeb3Pay.classList.remove('animate-pulse', 'pointer-events-none');
+          btnWeb3Pay.textContent = 'Pay with Phantom (Solana)';
+        }
+        return;
       }
 
+      // EVM wallet signing (Metamask / Uniswap Wallet)
+      const provider = getWeb3Provider();
       if (!provider) {
         log('Starting Web3 environment diagnostics...', 'system');
         const walletKeys = Object.keys(window).filter(k => 
