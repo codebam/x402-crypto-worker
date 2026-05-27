@@ -104,6 +104,13 @@
             </p>
           </div>
 
+          <!-- Callback URL configuration -->
+          <div class="space-y-2">
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Callback Webhook URL (Production API Demo)</label>
+            <input id="input-callback-url" type="text" placeholder="https://example.com/webhook" class="w-full font-mono text-xs text-slate-300 glass-input px-3 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500/50 transition">
+            <p class="text-[9px] text-slate-500 italic">Optional. Enter your application's endpoint to test post-payment secure webhook callbacks.</p>
+          </div>
+
           <div class="pt-4 flex flex-wrap gap-4">
             <button id="btn-fetch" class="flex-1 min-w-[200px] px-6 py-3 bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 active:scale-[0.98] transition text-slate-950 font-bold rounded-xl shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
@@ -218,6 +225,10 @@
                 <span id="success-tx-hash" class="font-mono text-emerald-400 break-all select-all">0x000000...</span>
               </div>
               <div class="text-xs">
+                <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Webhook Callback Status</span>
+                <span id="success-callback" class="text-purple-400 font-mono break-all font-semibold">none</span>
+              </div>
+              <div class="text-xs">
                 <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Server Response</span>
                 <span id="success-msg" class="text-slate-300">Premium payload unlocked successfully.</span>
               </div>
@@ -327,31 +338,29 @@
     // API Interactions
     btnFetch.addEventListener('click', async () => {
       btnFetch.disabled = true;
-      log('GET /api/premium - Initiating API Request', 'request');
+      const callbackUrl = document.getElementById('input-callback-url').value;
+      log('POST /api/payment/create - Requesting Web3 Invoice', 'request');
       
       try {
-        const response = await fetch('/api/premium', {
-          method: 'GET',
+        const response = await fetch('/api/payment/create', {
+          method: 'POST',
           headers: {
-            'Accept': 'application/json'
-          }
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount_usd: 0.10,
+            callback_url: callbackUrl
+          })
         });
 
-        log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
+        log(\`HTTP Status: \${response.status} \dots\`, 'system');
 
-        // Extract and format all headers
-        let headerStr = '<strong>Headers received:</strong><br>';
-        response.headers.forEach((value, key) => {
-          headerStr += \`<span class="text-slate-500">\${key}:</span> <span class="text-slate-300">\${value}</span><br>\`;
-        });
-        log(headerStr, 'system');
-
-        if (response.status === 402) {
+        if (response.status === 200) {
           const data = await response.json();
           currentPayeeAddress = data.payee_address;
-          currentRequiredHeader = data.payment_required_header;
+          currentRequiredHeader = 'created';
           
-          log(\`Payment Required! payee_address: \${currentPayeeAddress}\`, 'response-402');
+          log(\`Web3 Invoice Created! payee_address: \${currentPayeeAddress}\`, 'response-202');
           
           // Render Challenge on screen
           qrImage.src = data.qr_code_uri;
@@ -377,13 +386,9 @@
           
           // Enable Simulation
           btnSimulate.disabled = false;
-        } else if (response.status === 200) {
-          const data = await response.json();
-          log('Success! API Route unlocked.', 'response-200');
-          renderSuccess(response.headers.get('payment-response') || '', data);
         } else {
           const txt = await response.text();
-          log(\`Unexpected error: \${txt}\`, 'error');
+          log(\`Invoice creation failed: \${txt}\`, 'error');
         }
       } catch (err) {
         log(\`Connection failure: \${err.message}\`, 'error');
@@ -393,7 +398,7 @@
     });
 
     btnSimulate.addEventListener('click', async () => {
-      if (!currentPayeeAddress || !currentRequiredHeader) {
+      if (!currentPayeeAddress) {
         log('No active invoice to pay.', 'error');
         return;
       }
@@ -405,43 +410,26 @@
       const mockTxHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
       log(\`Generated Mock Transaction: \${mockTxHash}\`, 'system');
       
-      // Construct the payment-signature payload
-      // In the protocol, the signature contains base64-encoded payment details
-      const paymentSignaturePayload = {
-        mock: true,
-        payee: currentPayeeAddress,
-        transactionHash: mockTxHash,
-        price: "$0.10",
-        network: currentNetworkId
-      };
-
-      const paymentSignatureBase64 = btoa(JSON.stringify(paymentSignaturePayload));
-
-      log('GET /api/premium - Retrying request with PAYMENT-SIGNATURE header', 'request');
-      log(\`PAYMENT-SIGNATURE: \${paymentSignatureBase64.substring(0, 40)}...\`, 'system');
+      log('POST /api/payment/verify - Verifying transaction hash...', 'request');
 
       try {
-        const response = await fetch('/api/premium', {
-          method: 'GET',
+        const response = await fetch('/api/payment/verify', {
+          method: 'POST',
           headers: {
-            'Accept': 'application/json',
-            'payment-signature': paymentSignatureBase64
-          }
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            payee_address: currentPayeeAddress,
+            transaction_hash: mockTxHash
+          })
         });
 
-        log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
-
-        // Log response headers
-        let headerStr = '<strong>Headers received:</strong><br>';
-        response.headers.forEach((value, key) => {
-          headerStr += \`<span class="text-slate-500">\${key}:</span> <span class="text-slate-300">\${value}</span><br>\`;
-        });
-        log(headerStr, 'system');
+        log(\`HTTP Status: \${response.status} \dots\`, 'system');
 
         if (response.status === 200) {
           const data = await response.json();
-          log('HTTP 200 OK: Premium Content Successfully unlocked!', 'response-200');
-          renderSuccess(response.headers.get('payment-response') || '', data);
+          log('HTTP 200 OK: Payment Verified Successfully!', 'response-200');
+          renderSuccess(data);
         } else {
           const data = await response.json();
           log(\`Payment verification failed: \${data.error || JSON.stringify(data)}\`, 'error');
@@ -531,18 +519,16 @@
         let txParams = {};
 
         if (currentNetworkId === 'eip155:11155111') {
-          // Native ETH on Sepolia: 0.0001 ETH in hex wei is '0x5af3107a4000'
           txParams = {
             from: userAddress,
             to: currentPayeeAddress,
             value: '0x5af3107a4000',
           };
         } else {
-          // ERC-20 USDC on Ethereum Mainnet: transfer(address,uint256)
           const usdcContract = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
           const cleanAddress = currentPayeeAddress.toLowerCase().replace('0x', '');
           const paddedAddress = cleanAddress.padStart(64, '0');
-          const paddedValue = '186a0'.padStart(64, '0'); // 100000 USDC cents in Hex
+          const paddedValue = '186a0'.padStart(64, '0');
           const txData = '0xa9059cbb' + paddedAddress + paddedValue;
 
           txParams = {
@@ -559,33 +545,27 @@
           params: [txParams],
         });
 
-        log(\`Payment transaction submitted! Hash: \dots\`, 'system');
+        log(\`Payment transaction submitted! Hash: \${txHash}\`, 'system');
         btnWeb3Pay.textContent = 'Verifying Payment...';
-        log('GET /api/premium - Retrying request with verified txHash signature', 'request');
-
-        const paymentSignaturePayload = {
-          mock: true,
-          payee: currentPayeeAddress,
-          transactionHash: txHash,
-          price: "$0.10",
-          network: currentNetworkId
-        };
-        const paymentSignatureBase64 = btoa(JSON.stringify(paymentSignaturePayload));
-
-        const response = await fetch('/api/premium', {
-          method: 'GET',
+        
+        log('POST /api/payment/verify - Verifying transaction hash...', 'request');
+        const response = await fetch('/api/payment/verify', {
+          method: 'POST',
           headers: {
-            'Accept': 'application/json',
-            'payment-signature': paymentSignatureBase64
-          }
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            payee_address: currentPayeeAddress,
+            transaction_hash: txHash
+          })
         });
 
         log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
 
         if (response.status === 200) {
           const data = await response.json();
-          log('HTTP 200 OK: Premium Content Successfully unlocked!', 'response-200');
-          renderSuccess(response.headers.get('payment-response') || '', data);
+          log('HTTP 200 OK: Payment Verified Successfully!', 'response-200');
+          renderSuccess(data);
         } else {
           const data = await response.json();
           log(\`Payment verification failed: \${data.error || JSON.stringify(data)}\`, 'error');
@@ -599,20 +579,18 @@
       }
     });
 
-    function renderSuccess(paymentResponseHeader, apiResponse) {
-      let txHash = 'N/A';
-      if (paymentResponseHeader) {
-        try {
-          const decoded = atob(paymentResponseHeader);
-          const parsed = JSON.parse(decoded);
-          txHash = parsed.transactionHash || parsed.transaction_hash || txHash;
-        } catch (e) {
-          console.error('Failed to parse PAYMENT-RESPONSE header', e);
-        }
-      }
+    function renderSuccess(apiResponse) {
+      const txHash = apiResponse.session.transaction_hash || 'N/A';
+      const callbackStatus = apiResponse.session.callback_status || 'none';
+      const callbackUrl = apiResponse.session.callback_url || 'none';
 
       successTxHash.textContent = txHash;
       successMsg.textContent = apiResponse.message || JSON.stringify(apiResponse);
+      
+      const callbackElement = document.getElementById('success-callback');
+      if (callbackElement) {
+        callbackElement.textContent = \`\${callbackStatus} (Target: \${callbackUrl})\`;
+      }
 
       paywallEmpty.classList.add('hidden');
       paywallChallenge.classList.add('hidden');

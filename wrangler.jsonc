@@ -35,10 +35,16 @@
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
-	// "vars": {  "MY_VARIABLE": "production_value" }
-	/**
-	 * Service Bindings (communicate between multiple Workers)
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-	 */
-	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
+	"vars": {
+		"TREASURY_ADDRESS": "0x9e5D39a4a2fB28bD3973B461f7eB5C25E67F95cF"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "X402_KV",
+			"id": "x402_kv_prod_id"
+		}
+	],
+	"triggers": {
+		"crons": ["*/5 * * * *"]
+	}
 }
