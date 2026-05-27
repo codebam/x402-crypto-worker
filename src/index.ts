@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { paymentMiddleware, x402ResourceServer } from '@x402/hono';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { HTTPFacilitatorClient } from '@x402/core/server';
@@ -24,6 +25,13 @@ export interface Env {
 }
 
 const app = new Hono<{ Bindings: Env }>();
+
+// Enable CORS for API routes to allow client-side fetches from external domains like seanbehan.ca
+app.use('/api/*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'payment-signature', 'x-payment']
+}));
 
 // Ephemeral in-memory fallback map for dynamic wallets (address -> privateKey)
 const walletMap = new Map<string, string>();
