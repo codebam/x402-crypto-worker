@@ -240,6 +240,7 @@ export const demoHtml = `
     const btnSimulate = document.getElementById('btn-simulate');
     const btnClear = document.getElementById('btn-clear');
     const btnCopy = document.getElementById('btn-copy');
+    const btnWeb3Pay = document.getElementById('btn-web3-pay');
     const consoleOutput = document.getElementById('console-output');
     
     const paywallEmpty = document.getElementById('paywall-empty');
@@ -254,6 +255,7 @@ export const demoHtml = `
     let currentPayeeAddress = '';
     let currentRequiredHeader = '';
     let currentNetworkId = 'eip155:11155111';
+    let currentWeb3Link = '';
 
     // Console Logging
     function log(message, type = 'info') {
@@ -320,7 +322,7 @@ export const demoHtml = `
           payeeAddr.textContent = currentPayeeAddress;
           
           if (data.web3_link) {
-            document.getElementById('btn-web3-pay').href = data.web3_link;
+            currentWeb3Link = data.web3_link;
           }
           
           if (data.token_symbol) {
@@ -412,6 +414,133 @@ export const demoHtml = `
         log(\`Retry failed: \${err.message}\`, 'error');
       } finally {
         btnSimulate.disabled = false;
+      }
+    });
+
+    btnWeb3Pay.addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      if (!window.ethereum) {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile && currentWeb3Link) {
+          log('Redirecting to Web3 wallet deep-link...', 'system');
+          window.location.href = currentWeb3Link;
+        } else {
+          log('Web3 Wallet not detected! Please install Uniswap Wallet or MetaMask.', 'error');
+          alert('No Web3 wallet extension detected in your browser. Please install a wallet extension like Uniswap Wallet or MetaMask to pay.');
+        }
+        return;
+      }
+
+      btnWeb3Pay.classList.add('animate-pulse', 'pointer-events-none');
+      btnWeb3Pay.textContent = 'Connecting Wallet...';
+
+      try {
+        log('Connecting Web3 wallet...', 'system');
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const userAddress = accounts[0];
+        log(\`Wallet connected: \${userAddress}\`, 'system');
+
+        const targetHex = currentNetworkId === 'eip155:11155111' ? '0xaa36a7' : '0x1';
+        const targetName = currentNetworkId === 'eip155:11155111' ? 'Sepolia' : 'Ethereum Mainnet';
+        
+        btnWeb3Pay.textContent = 'Switching Network...';
+        log(\`Switching wallet network to \${targetName}...\`, 'system');
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: targetHex }],
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            log(\`Adding network \${targetName} to wallet...\`, 'system');
+            if (currentNetworkId === 'eip155:11155111') {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0xaa36a7',
+                  chainName: 'Sepolia Testnet',
+                  nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://rpc.sepolia.org'],
+                  blockExplorerUrls: ['https://sepolia.etherscan.io']
+                }]
+              });
+            }
+          } else {
+            throw switchError;
+          }
+        }
+
+        btnWeb3Pay.textContent = 'Signing Payment...';
+        log('Preparing transaction payload...', 'system');
+        let txParams = {};
+
+        if (currentNetworkId === 'eip155:11155111') {
+          // Native ETH on Sepolia: 0.0001 ETH in hex wei is '0x5af3107a4000'
+          txParams = {
+            from: userAddress,
+            to: currentPayeeAddress,
+            value: '0x5af3107a4000',
+          };
+        } else {
+          // ERC-20 USDC on Ethereum Mainnet: transfer(address,uint256)
+          const usdcContract = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+          const cleanAddress = currentPayeeAddress.toLowerCase().replace('0x', '');
+          const paddedAddress = cleanAddress.padStart(64, '0');
+          const paddedValue = '186a0'.padStart(64, '0'); // 100000 USDC cents in Hex
+          const txData = '0xa9059cbb' + paddedAddress + paddedValue;
+
+          txParams = {
+            from: userAddress,
+            to: usdcContract,
+            data: txData,
+            value: '0x0'
+          };
+        }
+
+        log('Requesting transaction signature from Web3 Wallet...', 'system');
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [txParams],
+        });
+
+        log(\`Payment transaction submitted! Hash: \${txHash}\`, 'system');
+        btnWeb3Pay.textContent = 'Verifying Payment...';
+        log('GET /api/premium - Retrying request with verified txHash signature', 'request');
+
+        const paymentSignaturePayload = {
+          mock: true,
+          payee: currentPayeeAddress,
+          transactionHash: txHash,
+          price: "$0.10",
+          network: currentNetworkId
+        };
+        const paymentSignatureBase64 = btoa(JSON.stringify(paymentSignaturePayload));
+
+        const response = await fetch('/api/premium', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'payment-signature': paymentSignatureBase64
+          }
+        });
+
+        log(\`HTTP Status: \${response.status} \${response.statusText}\`, 'system');
+
+        if (response.status === 200) {
+          const data = await response.json();
+          log('HTTP 200 OK: Premium Content Successfully unlocked!', 'response-200');
+          renderSuccess(response.headers.get('payment-response') || '', data);
+        } else {
+          const data = await response.json();
+          log(\`Payment verification failed: \${data.error || JSON.stringify(data)}\`, 'error');
+        }
+
+      } catch (err) {
+        log(\`Payment failed: \${err.message || err}\`, 'error');
+      } finally {
+        btnWeb3Pay.classList.remove('animate-pulse', 'pointer-events-none');
+        btnWeb3Pay.textContent = 'Pay with Web3 Wallet';
       }
     });
 
