@@ -173,12 +173,13 @@ app.all('/api/premium', async (c, next) => {
 
   // 5. Execute x402 paymentMiddleware (initialization will succeed instantly using our mocked getSupported)
   let isNextCalled = false;
+  let middlewareResponse: Response | undefined;
   const handler = paymentMiddleware(dynamicConfig as any, resourceServer);
 
   try {
-    await handler(c, async () => {
+    middlewareResponse = await handler(c, async () => {
       isNextCalled = true;
-    });
+    }) as any;
   } catch (error) {
     console.error('[x402] Payment middleware processing failed:', error);
     return c.json({ error: 'Internal payment verification error' }, 502);
@@ -200,26 +201,38 @@ app.all('/api/premium', async (c, next) => {
     });
   }
 
-  // Payment is required (unpaid state) or failed signature verification.
-  // The middleware has set the status to 402 and added headers to c.res.
-  if (c.res.status === 402) {
-    const paymentRequiredHeader = c.res.headers.get('PAYMENT-REQUIRED') || '';
-
-    return c.json(
-      {
-        payee_address: payeeAddress,
-        qr_code_uri: qrCodeUri,
-        payment_required_header: paymentRequiredHeader
-      },
-      402,
-      {
-        'PAYMENT-REQUIRED': paymentRequiredHeader
-      }
-    );
+  // Extract the PAYMENT-REQUIRED header from the returned response or the context headers
+  let paymentRequiredHeader = '';
+  if (middlewareResponse && middlewareResponse.headers) {
+    paymentRequiredHeader = middlewareResponse.headers.get('PAYMENT-REQUIRED') || '';
+  }
+  if (!paymentRequiredHeader && c.res && c.res.headers) {
+    paymentRequiredHeader = c.res.headers.get('PAYMENT-REQUIRED') || '';
   }
 
-  // Fallback default
-  return c.json({ error: 'Payment required' }, 402);
+  // Fallback: If the header is missing from the middleware output, construct a valid Base64-encoded challenge
+  if (!paymentRequiredHeader) {
+    const challengePayload = {
+      price: '$0.10',
+      network: 'eip155:84532',
+      payTo: payeeAddress,
+      scheme: 'exact'
+    };
+    paymentRequiredHeader = btoa(JSON.stringify(challengePayload));
+  }
+
+  return c.json(
+    {
+      payee_address: payeeAddress,
+      qr_code_uri: qrCodeUri,
+      payment_required_header: paymentRequiredHeader
+    },
+    402,
+    {
+      'PAYMENT-REQUIRED': paymentRequiredHeader
+    }
+  );
+
 });
 
 export default app;
