@@ -572,6 +572,27 @@ app.post('/api/payment/verify', async (c) => {
     return c.json({ error: 'Payment session not found' }, 404);
   }
 
+  // 1. If session is already paid or swept, return success immediately!
+  if (session.status === 'paid' || session.status === 'swept' || session.status === 'swapped_and_swept') {
+    return c.json({
+      success: true,
+      message: 'Payment verified and callback dispatched successfully.',
+      session: {
+        payee_address: session.payeeAddress,
+        status: session.status,
+        transaction_hash: session.transactionHash || transactionHash,
+        callback_url: session.callbackUrl,
+        callback_status: 'already_paid',
+        callback_dispatched: true
+      }
+    });
+  }
+
+  // 2. If polling query without new hash, return pending (402)
+  if (transactionHash === 'check' || !transactionHash) {
+    return c.json({ error: 'Payment is pending. Please provide a transaction hash to verify.' }, 402);
+  }
+
   // Perform on-chain verification
   let isVerified = false;
   
@@ -607,8 +628,28 @@ app.post('/api/payment/verify', async (c) => {
     // Simulation fallback
     if (transactionHash.startsWith('mock_')) isVerified = true;
   } else {
-    // EVM
-    isVerified = true; 
+    // EVM / Arbitrum
+    if (transactionHash.startsWith('mock_')) {
+      isVerified = true;
+    } else {
+      try {
+        let providerUrl = '';
+        if (session.network === 'arbitrum') {
+          providerUrl = c.env.ENVIRONMENT === 'production'
+            ? (c.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc')
+            : 'https://sepolia-rollup.arbitrum.io/rpc';
+        } else {
+          providerUrl = c.env.ENVIRONMENT === 'production'
+            ? (c.env.ETHEREUM_RPC_URL || 'https://rpc.ankr.com/eth')
+            : (c.env.SEPOLIA_RPC_URL || 'https://rpc.sepolia.org');
+        }
+        const provider = new ethers.JsonRpcProvider(providerUrl);
+        const receipt = await provider.getTransactionReceipt(transactionHash);
+        if (receipt && receipt.status === 1) isVerified = true;
+      } catch (err) {
+        console.error('[x402-verify] EVM transaction receipt check failed:', err);
+      }
+    }
   }
 
   if (!isVerified && !transactionHash.startsWith('mock_')) {
