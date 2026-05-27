@@ -434,7 +434,7 @@ app.post('/api/payment/verify', async (c) => {
 // ==========================================
 async function runScheduledSweeper(env: Env) {
   console.log('[x402-sweeper] Running scheduled payment sweeping and address cleanup...');
-  const treasury = env.TREASURY_ADDRESS || '0x9e5D39a4a2fB28bD3973B461f7eB5C25E67F95cF';
+  const treasury = env.TREASURY_ADDRESS || '0x655815CFaC22597C4339B76A8B7f8f3da6e648cD';
   
   if (!env.X402_KV) {
     console.log('[x402-sweeper] Skipping. X402_KV namespace is not bound.');
