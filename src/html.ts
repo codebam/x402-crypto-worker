@@ -75,9 +75,9 @@ export const demoHtml = `
           <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
           Facilitator: x402.org
         </span>
-        <span class="px-3 py-1 text-xs rounded-full font-medium bg-cyan-950/40 text-cyan-400 border border-cyan-800/60 flex items-center gap-1.5">
+        <span id="active-network-pill" class="px-3 py-1 text-xs rounded-full font-medium bg-cyan-950/40 text-cyan-400 border border-cyan-800/60 flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-          Base Sepolia
+          Sepolia
         </span>
       </div>
     </header>
@@ -244,6 +244,7 @@ export const demoHtml = `
 
     let currentPayeeAddress = '';
     let currentRequiredHeader = '';
+    let currentNetworkId = 'eip155:11155111';
 
     // Console Logging
     function log(message, type = 'info') {
@@ -312,6 +313,12 @@ export const demoHtml = `
           if (data.token_symbol) {
             document.getElementById('invoice-token').textContent = data.token_symbol + ' (EVM)';
           }
+          if (data.network_name) {
+            document.getElementById('active-network-pill').innerHTML = '<span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> ' + data.network_name;
+          }
+          if (data.network_id) {
+            currentNetworkId = data.network_id;
+          }
           
           paywallEmpty.classList.add('hidden');
           paywallSuccess.classList.add('hidden');
@@ -354,7 +361,7 @@ export const demoHtml = `
         payee: currentPayeeAddress,
         transactionHash: mockTxHash,
         price: "$0.10",
-        network: "eip155:84532"
+        network: currentNetworkId
       };
 
       const paymentSignatureBase64 = btoa(JSON.stringify(paymentSignaturePayload));

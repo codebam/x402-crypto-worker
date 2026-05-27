@@ -24,15 +24,27 @@ const facilitatorClient = new HTTPFacilitatorClient({
 facilitatorClient.getSupported = async () => {
   return {
     kinds: [
+      // Ethereum Mainnet (USDC in Production)
       {
         x402Version: 1,
         scheme: 'exact',
-        network: 'eip155:84532'
+        network: 'eip155:1'
       },
       {
         x402Version: 2,
         scheme: 'exact',
-        network: 'eip155:84532'
+        network: 'eip155:1'
+      },
+      // Sepolia Testnet (ETH in Dev/Testing)
+      {
+        x402Version: 1,
+        scheme: 'exact',
+        network: 'eip155:11155111'
+      },
+      {
+        x402Version: 2,
+        scheme: 'exact',
+        network: 'eip155:11155111'
       }
     ],
     extensions: [],
@@ -86,8 +98,10 @@ app.all('/api/premium', async (c, next) => {
     });
   }
 
+  const targetNetwork = isDev ? 'eip155:11155111' : 'eip155:1';
+
   const resourceServer = new x402ResourceServer(facilitatorClient)
-    .register('eip155:84532', exactScheme);
+    .register(targetNetwork, exactScheme);
 
   // Extract PAYMENT-SIGNATURE or fallback x-payment header
   const paymentSignatureHeader = c.req.header('payment-signature') || c.req.header('x-payment');
@@ -181,7 +195,7 @@ app.all('/api/premium', async (c, next) => {
         {
           scheme: 'exact',
           price: '$0.10',
-          network: 'eip155:84532', // Base Sepolia
+          network: targetNetwork,
           payTo: payeeAddress
         }
       ],
@@ -232,7 +246,7 @@ app.all('/api/premium', async (c, next) => {
   if (!paymentRequiredHeader) {
     const challengePayload = {
       price: '$0.10',
-      network: 'eip155:84532',
+      network: targetNetwork,
       payTo: payeeAddress,
       scheme: 'exact'
     };
@@ -244,7 +258,9 @@ app.all('/api/premium', async (c, next) => {
       payee_address: payeeAddress,
       qr_code_uri: qrCodeUri,
       payment_required_header: paymentRequiredHeader,
-      token_symbol: isDev ? 'ETH' : 'USDC'
+      token_symbol: isDev ? 'ETH' : 'USDC',
+      network_id: targetNetwork,
+      network_name: isDev ? 'Sepolia' : 'Ethereum'
     },
     402,
     {
