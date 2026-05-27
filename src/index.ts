@@ -152,9 +152,9 @@ app.all('/api/premium', async (c, next) => {
     }
   };
 
-  // 5. Execute x402 paymentMiddleware
+  // 5. Execute x402 paymentMiddleware (disabling online facilitator sync on start for robust offline local development)
   let isNextCalled = false;
-  const handler = paymentMiddleware(dynamicConfig as any, resourceServer);
+  const handler = paymentMiddleware(dynamicConfig as any, resourceServer, undefined, undefined, false);
 
   try {
     await handler(c, async () => {
