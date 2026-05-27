@@ -21,6 +21,21 @@ const facilitatorClient = new HTTPFacilitatorClient({
   url: 'https://x402.org/facilitator'
 });
 
+// Mock getSupported locally to bypass remote facilitator connectivity issues and support offline development
+facilitatorClient.getSupported = async () => {
+  return {
+    kinds: [
+      {
+        x402Version: 1,
+        scheme: 'exact',
+        network: 'eip155:84532'
+      }
+    ],
+    extensions: [],
+    signers: {}
+  };
+};
+
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register('eip155:84532', new ExactEvmScheme());
 
@@ -152,9 +167,9 @@ app.all('/api/premium', async (c, next) => {
     }
   };
 
-  // 5. Execute x402 paymentMiddleware (disabling online facilitator sync on start for robust offline local development)
+  // 5. Execute x402 paymentMiddleware (initialization will succeed instantly using our mocked getSupported)
   let isNextCalled = false;
-  const handler = paymentMiddleware(dynamicConfig as any, resourceServer, undefined, undefined, false);
+  const handler = paymentMiddleware(dynamicConfig as any, resourceServer);
 
   try {
     await handler(c, async () => {
