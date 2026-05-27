@@ -276,6 +276,31 @@
       consoleOutput.scrollTop = consoleOutput.scrollHeight;
     }
 
+    let announcedProviders = [];
+    window.addEventListener("eip6963:announceProvider", (event) => {
+      if (!announcedProviders.some(p => p.info.uuid === event.detail.info.uuid)) {
+        announcedProviders.push(event.detail);
+      }
+    });
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+    function getWeb3Provider() {
+      if (announcedProviders.length > 0) {
+        const uniswap = announcedProviders.find(p => p.info.name.toLowerCase().includes('uniswap'));
+        if (uniswap) {
+          log(\`Using EIP-6963 provider: \${uniswap.info.name}\`, 'system');
+          return uniswap.provider;
+        }
+        log(\`Using EIP-6963 provider: \${announcedProviders[0].info.name}\`, 'system');
+        return announcedProviders[0].provider;
+      }
+      if (window.ethereum) {
+        log('Using window.ethereum standard provider', 'system');
+        return window.ethereum;
+      }
+      return null;
+    }
+
     btnClear.addEventListener('click', () => {
       consoleOutput.innerHTML = '<div class="text-slate-500">// Console cleared.</div>';
     });
@@ -420,7 +445,8 @@
     btnWeb3Pay.addEventListener('click', async (e) => {
       e.preventDefault();
       
-      if (!window.ethereum) {
+      const provider = getWeb3Provider();
+      if (!provider) {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile && currentWeb3Link) {
           log('Redirecting to Web3 wallet deep-link...', 'system');
@@ -437,7 +463,7 @@
 
       try {
         log('Connecting Web3 wallet...', 'system');
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await provider.request({ method: 'eth_requestAccounts' });
         const userAddress = accounts[0];
         log(\`Wallet connected: \${userAddress}\`, 'system');
 
@@ -447,7 +473,7 @@
         btnWeb3Pay.textContent = 'Switching Network...';
         log(\`Switching wallet network to \${targetName}...\`, 'system');
         try {
-          await window.ethereum.request({
+          await provider.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: targetHex }],
           });
@@ -455,7 +481,7 @@
           if (switchError.code === 4902) {
             log(\`Adding network \${targetName} to wallet...\`, 'system');
             if (currentNetworkId === 'eip155:11155111') {
-              await window.ethereum.request({
+              await provider.request({
                 method: 'wallet_addEthereumChain',
                 params: [{
                   chainId: '0xaa36a7',
@@ -499,12 +525,12 @@
         }
 
         log('Requesting transaction signature from Web3 Wallet...', 'system');
-        const txHash = await window.ethereum.request({
+        const txHash = await provider.request({
           method: 'eth_sendTransaction',
           params: [txParams],
         });
 
-        log(\`Payment transaction submitted! Hash: \${txHash}\`, 'system');
+        log(\`Payment transaction submitted! Hash: \dots\`, 'system');
         btnWeb3Pay.textContent = 'Verifying Payment...';
         log('GET /api/premium - Retrying request with verified txHash signature', 'request');
 
