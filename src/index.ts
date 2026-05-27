@@ -185,6 +185,17 @@ app.all('/api/premium', async (c, next) => {
   const qrCodeSvg = await QRCode.toString(`ethereum:${payeeAddress}`, { type: 'svg' });
   const qrCodeUri = `data:image/svg+xml;base64,${btoa(qrCodeSvg)}`;
 
+  // Generate dynamic EIP-681 Web3 click-to-pay link
+  let web3Link = '';
+  if (isDev) {
+    // Sepolia Testnet native ETH EIP-681 Link (0.0001 ETH)
+    web3Link = `ethereum:${payeeAddress}@11155111?value=0.0001`;
+  } else {
+    // Ethereum Mainnet USDC EIP-681 Link ($0.10 USDC = 100000 in 6 decimals)
+    const usdcMainnet = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+    web3Link = `ethereum:${usdcMainnet}@1/transfer?address=${payeeAddress}&uint256=100000`;
+  }
+
   // 4. Construct RoutesConfig dynamically with the designated payeeAddress
   const path = c.req.path;
   const routeKey = `${method} ${path}`;
@@ -260,7 +271,8 @@ app.all('/api/premium', async (c, next) => {
       payment_required_header: paymentRequiredHeader,
       token_symbol: isDev ? 'ETH' : 'USDC',
       network_id: targetNetwork,
-      network_name: isDev ? 'Sepolia' : 'Ethereum'
+      network_name: isDev ? 'Sepolia' : 'Ethereum',
+      web3_link: web3Link
     },
     402,
     {

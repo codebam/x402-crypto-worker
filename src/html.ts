@@ -168,6 +168,15 @@ export const demoHtml = `
               <img id="qr-image" src="" alt="Payment QR Code" class="w-full h-full transition duration-300">
             </div>
 
+            <!-- Web3 Wallet Click-to-Pay Button -->
+            <a id="btn-web3-pay" href="#" class="w-48 py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 active:scale-[0.98] transition text-slate-950 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 text-xs mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" />
+              </svg>
+              Pay with Web3 Wallet
+            </a>
+
             <!-- Payee Address Detail -->
             <div class="space-y-1.5 text-left w-full">
               <label class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Dynamic Payee Address</label>
@@ -309,6 +318,10 @@ export const demoHtml = `
           // Render Challenge on screen
           qrImage.src = data.qr_code_uri;
           payeeAddr.textContent = currentPayeeAddress;
+          
+          if (data.web3_link) {
+            document.getElementById('btn-web3-pay').href = data.web3_link;
+          }
           
           if (data.token_symbol) {
             document.getElementById('invoice-token').textContent = data.token_symbol + ' (EVM)';
