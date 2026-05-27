@@ -18,6 +18,9 @@ export interface Env {
   BITCOIN_TREASURY_ADDRESS?: string;
   SIDESHIFT_SECRET?: string;
   SIDESHIFT_AFFILIATE_ID?: string;
+  ENVIRONMENT?: string;
+  ARBITRUM_RPC_URL?: string;
+  ETHEREUM_RPC_URL?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -163,6 +166,28 @@ facilitatorClient.getSupported = async () => {
         x402Version: 2,
         scheme: 'exact',
         network: 'eip155:11155111'
+      },
+      // Arbitrum One (USDC in Production)
+      {
+        x402Version: 1,
+        scheme: 'exact',
+        network: 'eip155:42161'
+      },
+      {
+        x402Version: 2,
+        scheme: 'exact',
+        network: 'eip155:42161'
+      },
+      // Arbitrum Sepolia (ETH in Dev/Testing)
+      {
+        x402Version: 1,
+        scheme: 'exact',
+        network: 'eip155:421614'
+      },
+      {
+        x402Version: 2,
+        scheme: 'exact',
+        network: 'eip155:421614'
       }
     ],
     extensions: [],
@@ -200,7 +225,7 @@ app.all('/api/premium', async (c, next) => {
 
   // 1. Detect if running in local development mode
   const url = new URL(c.req.url);
-  const isDev = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  const isDev = c.env.ENVIRONMENT !== 'production';
 
   // 2. Dynamically configure ExactEvmScheme and resourceServer
   const exactScheme = new ExactEvmScheme();
@@ -413,7 +438,7 @@ app.post('/api/payment/create', async (c) => {
   const network = body.network || 'evm'; // 'evm', 'solana', 'bitcoin'
 
   const url = new URL(c.req.url);
-  const isDev = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  const isDev = c.env.ENVIRONMENT !== 'production';
 
   let payeeAddress = '';
   let privateKey = '';
@@ -442,6 +467,20 @@ app.post('/api/payment/create', async (c) => {
     networkName = isDev ? 'Bitcoin Testnet' : 'Bitcoin Mainnet';
     // 0.00001 BTC value
     web3Link = `bitcoin:${payeeAddress}?amount=0.00001`;
+  } else if (network === 'arbitrum') {
+    // Arbitrum EVM keypair
+    const wallet = ethers.Wallet.createRandom();
+    payeeAddress = wallet.address;
+    privateKey = wallet.privateKey;
+    tokenSymbol = isDev ? 'ETH' : 'USDC';
+    networkId = isDev ? 'eip155:421614' : 'eip155:42161';
+    networkName = isDev ? 'Arbitrum Sepolia' : 'Arbitrum One';
+    if (isDev) {
+      web3Link = `ethereum:${payeeAddress}@421614?value=0.0001`;
+    } else {
+      const usdcArbitrum = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+      web3Link = `ethereum:${usdcArbitrum}@42161/transfer?address=${payeeAddress}&uint256=100000`;
+    }
   } else {
     // Standard EVM keypair
     const wallet = ethers.Wallet.createRandom();
@@ -729,9 +768,20 @@ async function runScheduledSweeper(env: Env) {
             }
           }
         } else {
-          // EVM
+          // EVM / Arbitrum
           console.log(`[x402-sweeper] Sweeping EVM address: ${session.payeeAddress} to treasury: ${EVM_treasury}`);
-          const providerUrl = env.SEPOLIA_RPC_URL || 'https://rpc.sepolia.org';
+          
+          let providerUrl = '';
+          if (session.network === 'arbitrum') {
+            providerUrl = env.ENVIRONMENT === 'production'
+              ? (env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc')
+              : 'https://sepolia-rollup.arbitrum.io/rpc';
+          } else {
+            providerUrl = env.ENVIRONMENT === 'production'
+              ? (env.ETHEREUM_RPC_URL || 'https://rpc.ankr.com/eth')
+              : (env.SEPOLIA_RPC_URL || 'https://rpc.sepolia.org');
+          }
+          
           const provider = new ethers.JsonRpcProvider(providerUrl);
           const wallet = new ethers.Wallet(session.privateKey, provider);
           

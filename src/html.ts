@@ -108,6 +108,7 @@ export const demoHtml = `
             <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Select Blockchain Network</label>
             <select id="select-network" class="w-full font-sans text-xs text-slate-300 glass-input px-3 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500/50 transition">
               <option value="evm">EVM (Ethereum / Sepolia)</option>
+              <option value="arbitrum">Arbitrum (EVM L2)</option>
               <option value="solana">Solana (SOL Devnet / Mainnet)</option>
               <option value="bitcoin">Bitcoin (BTC Testnet / Mainnet)</option>
             </select>
@@ -577,8 +578,19 @@ export const demoHtml = `
         const userAddress = accounts[0];
         log(\`Wallet connected: \${userAddress}\`, 'system');
 
-        const targetHex = currentNetworkId === 'eip155:11155111' ? '0xaa36a7' : '0x1';
-        const targetName = currentNetworkId === 'eip155:11155111' ? 'Sepolia' : 'Ethereum Mainnet';
+        let targetHex = '0x1';
+        let targetName = 'Ethereum Mainnet';
+        
+        if (currentNetworkId === 'eip155:11155111') {
+          targetHex = '0xaa36a7';
+          targetName = 'Sepolia';
+        } else if (currentNetworkId === 'eip155:42161') {
+          targetHex = '0xa4b1';
+          targetName = 'Arbitrum One';
+        } else if (currentNetworkId === 'eip155:421614') {
+          targetHex = '0x66eee';
+          targetName = 'Arbitrum Sepolia';
+        }
         
         btnWeb3Pay.textContent = 'Switching Network...';
         log(\`Switching wallet network to \${targetName}...\`, 'system');
@@ -601,6 +613,28 @@ export const demoHtml = `
                   blockExplorerUrls: ['https://sepolia.etherscan.io']
                 }]
               });
+            } else if (currentNetworkId === 'eip155:421614') {
+              await provider.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x66eee',
+                  chainName: 'Arbitrum Sepolia',
+                  nativeCurrency: { name: 'Arbitrum ETH', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
+                  blockExplorerUrls: ['https://sepolia.arbiscan.io']
+                }]
+              });
+            } else if (currentNetworkId === 'eip155:42161') {
+              await provider.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0xa4b1',
+                  chainName: 'Arbitrum One',
+                  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+                  blockExplorerUrls: ['https://arbiscan.io']
+                }]
+              });
             }
           } else {
             throw switchError;
@@ -611,17 +645,20 @@ export const demoHtml = `
         log('Preparing transaction payload...', 'system');
         let txParams = {};
 
-        if (currentNetworkId === 'eip155:11155111') {
+        if (currentNetworkId === 'eip155:11155111' || currentNetworkId === 'eip155:421614') {
           txParams = {
             from: userAddress,
             to: currentPayeeAddress,
-            value: '0x5af3107a4000',
+            value: '0x5af3107a4000', // 0.0001 ETH
           };
         } else {
-          const usdcContract = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+          const usdcContract = currentNetworkId === 'eip155:42161'
+            ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum USDC
+            : '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // Ethereum USDC
+            
           const cleanAddress = currentPayeeAddress.toLowerCase().replace('0x', '');
           const paddedAddress = cleanAddress.padStart(64, '0');
-          const paddedValue = '186a0'.padStart(64, '0');
+          const paddedValue = '186a0'.padStart(64, '0'); // $0.10 in 6 decimals = 100,000 = 0x186a0
           const txData = '0xa9059cbb' + paddedAddress + paddedValue;
 
           txParams = {

@@ -64,6 +64,27 @@ describe("x402 Multi-Chain Payment Gateway", () => {
       expect(json.token_symbol).toBe("SOL");
       expect(json.network_id).toBe("solana:devnet");
     });
+
+    it("creates an Arbitrum payment session successfully", async () => {
+      const request = new Request("http://localhost/api/payment/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount_usd: 0.10,
+          network: "arbitrum"
+        })
+      });
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const json = await response.json() as any;
+      expect(json.success).toBe(true);
+      expect(json.payee_address).toBeDefined();
+      expect(json.token_symbol).toBe("ETH"); // Arbitrum Sepolia in local/dev
+      expect(json.network_id).toBe("eip155:421614");
+    });
   });
 
   describe("POST /api/payment/verify", () => {
