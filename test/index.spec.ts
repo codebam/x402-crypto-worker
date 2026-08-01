@@ -85,6 +85,38 @@ describe("x402 Multi-Chain Payment Gateway", () => {
       expect(json.token_symbol).toBe("ETH"); // Arbitrum Sepolia in local/dev
       expect(json.network_id).toBe("eip155:421614");
     });
+
+    // The web3 links used to carry hardcoded amounts, so a $5 invoice produced a
+    // QR asking for a fixed token amount while the client's wallet button
+    // charged the full $5 — the same invoice priced two ways. These assert the
+    // link scales, and that it matches the maths the donate page on
+    // seanbehan.ca uses for the same invoice.
+    it("scales the web3 link amount with amount_usd", async () => {
+      const create = async (amountUsd: number, network: string) => {
+        const request = new Request("http://localhost/api/payment/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount_usd: amountUsd, network })
+        });
+        const ctx = createExecutionContext();
+        const response = await worker.fetch(request, env, ctx);
+        await waitOnExecutionContext(ctx);
+        return await response.json() as any;
+      };
+
+      // Sepolia/Arbitrum-Sepolia pay in native ETH; the client sends
+      // amount * 10^15 wei, i.e. 0.001 ETH per dollar.
+      const five = await create(5, "arbitrum");
+      expect(five.web3_link).toContain("value=0.005");
+
+      const one = await create(1, "arbitrum");
+      expect(one.web3_link).toContain("value=0.001");
+      expect(one.web3_link).not.toEqual(five.web3_link);
+
+      // Solana: the client sends amount * 10^7 lamports, i.e. 0.01 SOL per dollar.
+      const sol = await create(5, "solana");
+      expect(sol.web3_link).toContain("amount=0.05");
+    });
   });
 
   describe("POST /api/payment/verify", () => {
