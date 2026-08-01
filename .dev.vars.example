@@ -1,0 +1,8 @@
+# Copy to .dev.vars before running `wrangler dev`.
+#
+# wrangler.jsonc sets ENVIRONMENT=production so the *deployed* worker issues
+# mainnet addresses. Those vars also apply to `wrangler dev`, so without this
+# override local development would mint real mainnet wallets and ask for real
+# funds. Anything other than "production" selects the testnet paths
+# (Sepolia / Arbitrum Sepolia / Solana devnet / Bitcoin testnet).
+ENVIRONMENT=development

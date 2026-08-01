@@ -455,6 +455,17 @@ app.post('/api/payment/create', async (c) => {
   let networkName = '';
   let web3Link = '';
 
+  // Scale the QR code's amount with amount_usd. These links carried fixed
+  // amounts, so an invoice for $5 produced a QR asking for 0.1 USDC while the
+  // client's wallet button charged the full $5 — same invoice, two prices.
+  //
+  // The rates below mirror the client's own maths; they are placeholders, not
+  // quotes, as there is no price feed here yet. USDC is the only exact one.
+  const usdcUnits = Math.floor(amountUsd * 1_000_000); // 6 decimals, 1 USDC = $1
+  const ethAmount = amountUsd * 0.001;
+  const solAmount = amountUsd * 0.01;
+  const btcAmount = amountUsd * 0.00001;
+
   if (network === 'solana') {
     // Generate a secure Solana keypair
     const keypair = SolanaKeypair.generate();
@@ -464,7 +475,7 @@ app.post('/api/payment/create', async (c) => {
     networkId = isDev ? 'solana:devnet' : 'solana:mainnet';
     networkName = isDev ? 'Solana Devnet' : 'Solana Mainnet';
     // 0.001 SOL Devnet value or equivalent Mainnet SOL
-    web3Link = `solana:${payeeAddress}?amount=0.001`;
+    web3Link = `solana:${payeeAddress}?amount=${solAmount}`;
   } else if (network === 'bitcoin') {
     // Generate a legacy Bitcoin address and WIF private key
     const keypair = generateBitcoinKeypair();
@@ -474,7 +485,7 @@ app.post('/api/payment/create', async (c) => {
     networkId = isDev ? 'bitcoin:testnet' : 'bitcoin:mainnet';
     networkName = isDev ? 'Bitcoin Testnet' : 'Bitcoin Mainnet';
     // 0.00001 BTC value
-    web3Link = `bitcoin:${payeeAddress}?amount=0.00001`;
+    web3Link = `bitcoin:${payeeAddress}?amount=${btcAmount}`;
   } else if (network === 'arbitrum') {
     // Arbitrum EVM keypair
     const wallet = ethers.Wallet.createRandom();
@@ -484,10 +495,10 @@ app.post('/api/payment/create', async (c) => {
     networkId = isDev ? 'eip155:421614' : 'eip155:42161';
     networkName = isDev ? 'Arbitrum Sepolia' : 'Arbitrum One';
     if (isDev) {
-      web3Link = `ethereum:${payeeAddress}@421614?value=0.0001`;
+      web3Link = `ethereum:${payeeAddress}@421614?value=${ethAmount}`;
     } else {
       const usdcArbitrum = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
-      web3Link = `ethereum:${usdcArbitrum}@42161/transfer?address=${payeeAddress}&uint256=100000`;
+      web3Link = `ethereum:${usdcArbitrum}@42161/transfer?address=${payeeAddress}&uint256=${usdcUnits}`;
     }
   } else {
     // Standard EVM keypair
@@ -498,10 +509,10 @@ app.post('/api/payment/create', async (c) => {
     networkId = isDev ? 'eip155:11155111' : 'eip155:1';
     networkName = isDev ? 'Sepolia' : 'Ethereum';
     if (isDev) {
-      web3Link = `ethereum:${payeeAddress}@11155111?value=0.0001`;
+      web3Link = `ethereum:${payeeAddress}@11155111?value=${ethAmount}`;
     } else {
       const usdcMainnet = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
-      web3Link = `ethereum:${usdcMainnet}@1/transfer?address=${payeeAddress}&uint256=100000`;
+      web3Link = `ethereum:${usdcMainnet}@1/transfer?address=${payeeAddress}&uint256=${usdcUnits}`;
     }
   }
 

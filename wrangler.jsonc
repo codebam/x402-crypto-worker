@@ -36,7 +36,12 @@
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	"vars": {
-		"TREASURY_ADDRESS": "0x655815CFaC22597C4339B76A8B7f8f3da6e648cD"
+		"TREASURY_ADDRESS": "0x655815CFaC22597C4339B76A8B7f8f3da6e648cD",
+		// The code treats anything other than "production" as development, so
+		// leaving this unset made the *deployed* worker hand out Arbitrum Sepolia
+		// testnet addresses. Donations from seanbehan.ca were unspendable.
+		// `wrangler dev` overrides this locally via --var ENVIRONMENT:development.
+		"ENVIRONMENT": "production"
 	},
 	"kv_namespaces": [
 		{
